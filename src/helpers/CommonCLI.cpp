@@ -422,6 +422,12 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
       } else {
         strcpy(reply, "off");
       }
+    } else if (memcmp(command, "log start hex", 13) == 0) {
+      if (_callbacks->setLoggingHex(true)) {
+        strcpy(reply, "   logging on (hex)");
+      } else {
+        strcpy(reply, "   ERR: unsupported");
+      }
     } else if (memcmp(command, "log start", 9) == 0) {
       _callbacks->setLoggingOn(true);
       strcpy(reply, "   logging on");
@@ -431,6 +437,24 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
     } else if (memcmp(command, "log erase", 9) == 0) {
       _callbacks->eraseLogFile();
       strcpy(reply, "   log erased");
+    } else if (memcmp(command, "log clear ", 10) == 0) {
+      if (command[10] < '0' || command[10] > '9') {
+        strcpy(reply, "   ERR: usage: log clear <secs>");
+      } else {
+        int kept = 0;
+        int removed = _callbacks->clearLogOlderThan(_atoi(&command[10]), &kept);
+        if (removed < 0) {
+          strcpy(reply, "   ERR: unsupported");
+        } else {
+          sprintf(reply, "   log cleared: kept %d, removed %d", kept, removed);
+        }
+      }
+    } else if (sender_timestamp == 0 && memcmp(command, "log hex", 7) == 0) {
+      if (_callbacks->dumpLogHex()) {
+        strcpy(reply, "   EOF");
+      } else {
+        strcpy(reply, "   ERR: unsupported");
+      }
     } else if (sender_timestamp == 0 && memcmp(command, "log", 3) == 0) {
       _callbacks->dumpLogFile();
       strcpy(reply, "   EOF");

@@ -35,6 +35,7 @@
 #include <helpers/TxtDataHelpers.h>
 #include <helpers/RegionMap.h>
 #include <helpers/RoutingPolicy.h>
+#include <helpers/PacketLogRing.h>
 #include "RateLimiter.h"
 
 #ifdef WITH_BRIDGE
@@ -87,7 +88,9 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   uint32_t last_millis;
   uint64_t uptime_millis;
   unsigned long next_local_advert, next_flood_advert;
-  bool _logging;
+  bool _logging;        // text summaries to PACKET_LOG_FILE
+  bool _logging_hex;    // raw packets to _packet_ring (RAM only)
+  PacketLogRing _packet_ring;
   NodePrefs _prefs;
   ClientACL  acl;
   CommonCLI _cli;
@@ -205,7 +208,37 @@ public:
   void updateAdvertTimer() override;
   void updateFloodAdvertTimer() override;
 
-  void setLoggingOn(bool enable) override { _logging = enable; }
+  void setLoggingOn(bool enable) override {
+    _logging = enable;
+    _logging_hex = false;
+  }
+
+  bool setLoggingHex(bool enable) override {
+#if PACKET_LOG_RING_SIZE > 0
+    _logging_hex = enable;
+    _logging = false;
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  bool dumpLogHex() override {
+#if PACKET_LOG_RING_SIZE > 0
+    _packet_ring.dump(Serial, getRTCClock()->getCurrentTime());
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  int clearLogOlderThan(uint32_t secs, int* kept) override {
+#if PACKET_LOG_RING_SIZE > 0
+    return _packet_ring.clearOlderThan(getRTCClock()->getCurrentTime(), secs, kept);
+#else
+    return -1;
+#endif
+  }
 
   void eraseLogFile() override {
     _fs->remove(PACKET_LOG_FILE);

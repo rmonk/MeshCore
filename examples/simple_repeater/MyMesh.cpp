@@ -483,6 +483,13 @@ void MyMesh::logRx(mesh::Packet *pkt, int len, float score) {
   }
 #endif
 
+  if (_logging_hex) {
+    uint8_t raw[MAX_TRANS_UNIT];
+    int raw_len = pkt->writeTo(raw);
+    _packet_ring.add(PacketLogRing::RX, raw, raw_len, getRTCClock()->getCurrentTime(),
+                     _radio->getLastSNR(), _radio->getLastRSSI(), score);
+  }
+
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
@@ -509,6 +516,12 @@ void MyMesh::logTx(mesh::Packet *pkt, int len) {
   }
 #endif
 
+  if (_logging_hex) {
+    uint8_t raw[MAX_TRANS_UNIT];
+    int raw_len = pkt->writeTo(raw);
+    _packet_ring.add(PacketLogRing::TX, raw, raw_len, getRTCClock()->getCurrentTime());
+  }
+
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
@@ -528,6 +541,12 @@ void MyMesh::logTx(mesh::Packet *pkt, int len) {
 }
 
 void MyMesh::logTxFail(mesh::Packet *pkt, int len) {
+  if (_logging_hex) {
+    uint8_t raw[MAX_TRANS_UNIT];
+    int raw_len = pkt->writeTo(raw);
+    _packet_ring.add(PacketLogRing::TX_FAIL, raw, raw_len, getRTCClock()->getCurrentTime());
+  }
+
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
@@ -879,6 +898,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
   dirty_contacts_expiry = 0;
   set_radio_at = revert_radio_at = 0;
   _logging = false;
+  _logging_hex = false;
   region_load_active = false;
   recv_pkt_region = NULL;
 
@@ -943,6 +963,11 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 void MyMesh::begin(FILESYSTEM *fs) {
   mesh::Mesh::begin();
   _fs = fs;
+  {
+    uint8_t boot_id[2];
+    getRNG()->random(boot_id, sizeof(boot_id));
+    _packet_ring.begin(((uint16_t)boot_id[0] << 8) | boot_id[1]);
+  }
   // load persisted prefs
   _cli.loadPrefs(_fs);
   acl.load(_fs, self_id);

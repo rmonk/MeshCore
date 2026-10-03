@@ -207,6 +207,18 @@ public:
   virtual void setLoggingOn(bool enable) = 0;
   virtual void eraseLogFile() = 0;
   virtual void dumpLogFile() = 0;
+
+  // raw packet (hex) log, in a RAM ring buffer. CommonCLI reports unsupported if not overridden.
+  virtual bool setLoggingHex(bool enable) {
+    return false;
+  }
+  virtual bool dumpLogHex() {
+    return false;
+  }
+  virtual int clearLogOlderThan(uint32_t secs, int* kept) {
+    return -1;
+  }
+
   virtual void setTxPower(int8_t power_dbm) = 0;
   virtual void formatNeighborsReply(char *reply) = 0;
   virtual void removeNeighbor(const uint8_t* pubkey, int key_len) {

@@ -182,6 +182,46 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ---
 
+### Begin capture of raw packets (hex) to RAM
+**Usage:** `log start hex`
+
+**Repeater only.** Instead of text summaries on storage, the raw bytes of every received, sent and failed packet are kept in a RAM ring buffer. The default is 64 packets (8 on STM32), set by the `PACKET_LOG_RING_SIZE` build flag. When the buffer is full the oldest entry is overwritten. Nothing is written to flash, and the buffer is lost on reboot. `log start` switches back to text logging; `log stop` stops both.
+
+Replies `logging on (hex)`. Older firmware ignores the `hex` and replies `logging on`.
+
+---
+
+### Print the raw packet log to the serial terminal
+**Usage:** `log hex`
+
+**Serial Only:** Yes
+
+Prints a header line, then one line per packet, oldest first, followed by `EOF`:
+
+```
+# boot=3fa2 now=1791031386 count=3 dropped=0
+1791031380 3fa2-412 RX -7.25 -106 21 1500AB12...
+1791031381 3fa2-413 TX 1500AB12...
+1791031384 3fa2-414 TXF 1500AB12...
+```
+
+- `boot` is a random id chosen at each boot, and `now` is the node's current time.
+- `count` is the number of buffered packets. `dropped` counts entries overwritten since boot because the buffer was full.
+- Each line has the packet's RTC timestamp, `<boot>-<sequence>`, and the kind (`RX`, `TX` or `TXF` for a failed send).
+- RX lines then give SNR (dB), RSSI (dBm) and score (×1000).
+- The last field is the packet in wire format, in hex.
+
+The sequence number increases by one for every packet captured since boot. A reader can therefore de-duplicate overlapping dumps by `boot`/sequence and detect gaps.
+
+---
+
+### Remove old entries from the raw packet log
+**Usage:** `log clear <secs>`
+
+Removes buffered packets more than `<secs>` seconds older than the node's current time. Replies `log cleared: kept N, removed M`. For lossless capture: dump with `log hex`, store the entries, then `log clear` with a window longer than the gap between dumps, and de-duplicate the overlap on the next dump.
+
+---
+
 ## Info
 
 ### Get the Version
